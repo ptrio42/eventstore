@@ -83,7 +83,14 @@ func buildDsl(filter nostr.Filter) ([]byte, error) {
 
 	// search
 	if filter.Search != "" {
-		dsl.Must(esquery.Match("content_search", filter.Search))
+		// Use fuzzy matching and multi-match for better word variations
+		searchQ := esquery.Bool()
+		searchQ.Should(
+			esquery.MultiMatch(filter.Search).
+				Field("content_search").Fuzziness("AUTO").
+				Type("best_fields"), // Change to "most_fields" or "cross_fields" as needed
+		)
+		dsl.Must(searchQ)
 	}
 
 	return json.Marshal(esquery.Query(dsl))
@@ -155,7 +162,7 @@ func (ess *ElasticsearchStorage) QueryEvents(ctx context.Context, filter nostr.F
 
 		es.Search.WithBody(bytes.NewReader(dsl)),
 		es.Search.WithSize(limit),
-		es.Search.WithSort("event.created_at:desc", "event.id"),
+		es.Search.WithSort("_score", "event.created_at:desc", "event.id"),
 	)
 	if err != nil {
 		log.Fatalf("Error getting response: %s", err)
