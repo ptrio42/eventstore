@@ -83,14 +83,7 @@ func buildDsl(filter nostr.Filter) ([]byte, error) {
 
 	// search
 	if filter.Search != "" {
-		// Use fuzzy matching and multi-match for better word variations
-		searchQ := esquery.Bool()
-		searchQ.Should(
-			esquery.MultiMatch(filter.Search).
-				Field("content_search").Fuzziness("AUTO").
-				Type("best_fields"), // Change to "most_fields" or "cross_fields" as needed
-		)
-		dsl.Must(searchQ)
+		dsl.Must(esquery.Match("content_search", filter.Search).Fuzziness("auto"))
 	}
 
 	return json.Marshal(esquery.Query(dsl))
